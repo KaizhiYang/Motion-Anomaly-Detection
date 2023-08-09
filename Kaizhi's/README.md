@@ -1,6 +1,5 @@
 # OpenCV + YOLOv5 + DeepSORT Project
 
-![Project Banner](project_banner.jpg)
 
 This repository contains a project that combines the power of OpenCV, YOLOv5, and DeepSORT to create a object detection and tracking system. The goal of this project is to detect and track objects in real-time video streams, making it useful for applications such as surveillance, crowd monitoring, and traffic analysis.
 
