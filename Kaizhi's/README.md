@@ -22,9 +22,9 @@ Object detection and tracking are essential computer vision tasks. This project 
 
 
 ## Usage
-1. Download the zip file of this project.
-2. Unzip it.
-3. Run the homoDeepSort.py
+  1. Download the zip file of this project.
+  2. Unzip it.
+  3. Run the homoDeepSort.py
 
 
 ## Configuration
