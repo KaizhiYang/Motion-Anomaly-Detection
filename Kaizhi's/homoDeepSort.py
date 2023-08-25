@@ -14,9 +14,9 @@ input_cam = 2
 
 # video saving
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-vidFile = "CrowdTracking/Kaizhi's/result.mp4"
+vidFile = "CrowdTracking/Kaizhi's/test1.mp4"
 vw = cv2.VideoWriter(vidFile, fourcc, 24, (2302,1302),1) # resolution has to align with the image you want to save as a video
-videoSaver = 1
+videoSaver = False  # 1: save video  0: not save
 
 # data for Homography process
 top_left = (41,4)
@@ -31,7 +31,6 @@ top_right_frbd = (900,380)
 bot_left_frbd = (455,870)
 bot_right_frbd = (890,870)
 forbidden_area = np.array([top_right_frbd, top_left_frbd, bot_left_frbd, bot_right_frbd], np.int32)
-
 
 # get the m and n in the equation y = mx + n
 def getMN(pointA, pointB):
@@ -72,7 +71,7 @@ def getCoordinate(x,y,w,h):
     new_y = y+h
     return np.array([[new_x], [new_y], [1]], np.float32)
 
-def threeImgShow(img1, img2, img3):
+def threeImgShow(img1, img2, img3, videoSaver):
     # Resize images to the same dimensions (optional)
     width, height = 1151, 651
     img1 = cv2.resize(img1, (width, height))
@@ -92,7 +91,7 @@ def threeImgShow(img1, img2, img3):
     canvas[height:height*2, 0:width] = img3  # Bottom left   
     
     # Save the image as video
-    if videoSaver == 1:
+    if videoSaver == True:
         vw.write(canvas)
     
     # Display the final canvas
@@ -120,7 +119,19 @@ def maskImgDetect(mask_img, people):
     else:
         return False
     
-    
+# covert x and y coordinates system into magnitude and angle system
+def coordinateToPolar(x_p, y_p):
+    magnitude = np.sqrt((x_p) ** 2 + (y_p) ** 2)
+    angle = np.arctan2(y_p, x_p)
+    return magnitude, angle
+
+# Use the extend method to combine the lists
+def combineLists(lists):
+    combinedList = []
+    for sublist in lists:
+        combinedList.extend(sublist)
+    return combinedList
+
 if __name__ == '__main__':
     # DeepSORT -> Intializing tracker.
     max_cosine_distance = 0.4
@@ -135,6 +146,9 @@ if __name__ == '__main__':
     # Initialize the position and color of each people
     track_points = {}
     track_colors = {}
+    track_rho = {}
+    track_phi = {}
+    track_xy_prime = {}
     
     ## set up input type and classes
     cap = cv2.VideoCapture(input_vid) # input could be video or camera 2
@@ -282,7 +296,7 @@ if __name__ == '__main__':
             # Extract person's info
             person_id = track.track_id
             color = [int(c) for c in COLORS[colorCount]]
-            colorCount += 1
+            
             txt = 'id:' + str(person_id)
             if person_id in track_colors:
                 color = track_colors[person_id]
@@ -293,19 +307,30 @@ if __name__ == '__main__':
             people_position = getCoordinate(bbox[0], bbox[1], (bbox[2] - bbox[0]), (bbox[3] - bbox[1]))
             trasformed_position = np.dot(hMatrix, people_position)
             newX, newY, temp = trasformed_position/trasformed_position[2]
-            
+            newX = int(newX)
+            newY = int(newY)
             # detect if person is in the warning area
             if maskImgDetect(mask_img, (newX, newY)):
                 color = (0,0,255)
             
-            cv2.circle(img_background, (int(newX), int(newY)),15,color,30)
-            cv2.putText(img_background, txt, (int(newX), int(newY)), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,0), 5)
+            cv2.circle(img_background, (newX, newY),15,color,30)
+            cv2.putText(img_background, txt, (newX, newY), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,0), 5)
             
             # draw the tracklet of each person
-            if person_id in track_points:
+            if person_id in track_points.keys():
                 track_points[person_id].append((newX, newY))
                 coordinates = track_points[person_id]
-                prev_x, prev_y = coordinates[0]
+                prev_x, prev_y = coordinates[len(coordinates)-2]
+                
+                # Normal Distribution -> step1
+                x_prime = newX - prev_x
+                y_prime = newY - prev_y
+                track_xy_prime[person_id].append((x_prime, y_prime))
+                # Normal Distribution -> step2
+                r, p = coordinateToPolar(x_prime, y_prime)
+                track_rho[person_id].append(r)
+                track_phi[person_id].append(p)
+                
                 for i in range(1, len(coordinates)):
                     current_x, current_y = coordinates[i]
                     cv2.line(img_background, (int(prev_x), int(prev_y)), (int(current_x), int(current_y)), color, 4)
@@ -313,6 +338,11 @@ if __name__ == '__main__':
             else:
                 track_points[person_id] = ([(newX, newY)])
                 track_colors[person_id] = [int(c) for c in COLORS[colorCount]]
+                track_rho[person_id] = [0]
+                track_phi[person_id] = [0]
+                track_xy_prime[person_id] = [(0,0)]
+                
+            colorCount += 1
             
             # DeepSORT -> Writing Track bounding box and ID on the frame using OpenCV.
             (label_width,label_height), baseline = cv2.getTextSize(txt , cv2.FONT_HERSHEY_SIMPLEX,1,1)
@@ -334,12 +364,24 @@ if __name__ == '__main__':
         
         
         # show img
-        threeImgShow(img_trans, img_background, img)
+        threeImgShow(img_trans, img_background, img, videoSaver)
         
         k = cv2.waitKey(400) # 5 seconds = 5 * 1000
         if k == ord('q'):
             break
-        
+    
+    # Normal Distribution -> step3
+    total_rho = combineLists(track_rho.values())
+    total_phi = combineLists(track_phi.values())
+    mean_magnitude = sum(total_rho) / len(total_rho)
+    mean_angle = sum(total_phi) / len(total_phi)
+    std_magnitude = np.std(total_rho)
+    std_angle = np.std(total_phi)
+    
+    
+    print('Mean(magnitude) = ' + str(mean_magnitude) + '    Mean(angle) = ' + str(mean_angle) + '\n')
+    print('Std(magnitude) = ' + str(std_magnitude) + '    Std(angle) = ' + str(std_angle) + '\n')
+    
     vw.release()
     cap.release()
     cv2.destroyAllWindows()
