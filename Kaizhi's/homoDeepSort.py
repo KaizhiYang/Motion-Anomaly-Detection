@@ -9,12 +9,12 @@ from deep_sort.deep_sort.tracker import Tracker
 from deep_sort.tools import generate_detections as gdet
 
 # choose input source for detection
-input_vid = "people.mp4"
+input_vid = "CrowdTracking/Kaizhi's/people.mp4"
 input_cam = 2
 
 # video saving
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-vidFile = 'test1.mp4'
+vidFile = "CrowdTracking/Kaizhi's/result.mp4"
 vw = cv2.VideoWriter(vidFile, fourcc, 24, (2302,1302),1) # resolution has to align with the image you want to save as a video
 videoSaver = 1
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # DeepSORT -> Intializing tracker.
     max_cosine_distance = 0.4
     nn_budget = None
-    model_filename = './mars-small128.pb'
+    model_filename = "CrowdTracking/Kaizhi's/mars-small128.pb"
     encoder = gdet.create_box_encoder(model_filename, batch_size=1)
     metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
     tracker = Tracker(metric)
@@ -138,12 +138,12 @@ if __name__ == '__main__':
     
     ## set up input type and classes
     cap = cv2.VideoCapture(input_vid) # input could be video or camera 2
-    file = open("classes.txt","r")
+    file = open("CrowdTracking/Kaizhi's/classes.txt","r")
     classes = file.read().split('\n')
     print(classes)
     
     ## read network model
-    net = cv2.dnn.readNetFromONNX("yolov5x.onnx")
+    net = cv2.dnn.readNetFromONNX("CrowdTracking/Kaizhi's/yolov5x.onnx")
     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
     net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
     
