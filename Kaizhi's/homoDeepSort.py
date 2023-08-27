@@ -1,5 +1,6 @@
 import cv2
 import numpy as np 
+import matplotlib.pyplot as plt
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 # DeepSORT -> Importing DeepSORT.
@@ -132,6 +133,50 @@ def combineLists(lists):
         combinedList.extend(sublist)
     return combinedList
 
+# Normal Distribution Plot
+def normalDistGraph(mean, std_dev, src_name):
+
+    # Create an array of x values
+    x = np.linspace(-10*mean, 10*mean, 100)  # Choose an appropriate range
+    if src_name is "Angle":
+        x = np.linspace(-8*std_dev, 8*std_dev, 100)
+
+    # Calculate the PDF for each x value
+    pdf = (1 / (std_dev * np.sqrt(2 * np.pi))) * np.exp(-((x - mean)**2) / (2 * std_dev**2))
+
+    # Plot the normal distribution
+    plt.plot(x, pdf, label='Normal Distribution')
+    plt.xlabel("X (" + src_name + ")")
+    plt.ylabel('Probability Density')
+    plt.legend()
+    plt.title(f'Normal Distribution (μ={mean}, σ={std_dev})')
+    plt.grid(True)
+    
+
+# Plot scatter graph
+def scatterGraph(total_mag, total_ang):
+    # Create the scatter plot
+    plt.scatter(total_mag, total_ang, color='blue', marker='o')
+
+    # Optional: Add labels and a title
+    plt.xlabel('Magnitude')
+    plt.ylabel('Angle')
+    plt.title('Scatter Plot')
+
+    # Optional: Add a legend
+    plt.legend()
+
+# Plot graphs: two normal distributions + one scatter graph
+def plotGraphs(total_mag, total_ang, mean_mag, std_dev_mag, mean_ang, std_dev_ang):
+    plt.subplot(3,1,1)
+    scatterGraph(total_mag, total_ang)
+    plt.subplot(3,1,2)
+    normalDistGraph(mean_mag, std_dev_mag, "Magnitude")
+    plt.subplot(3,1,3)
+    normalDistGraph(mean_ang, std_dev_ang, "Angle")
+    plt.tight_layout()
+    plt.show()
+    
 if __name__ == '__main__':
     # DeepSORT -> Intializing tracker.
     max_cosine_distance = 0.4
@@ -378,10 +423,11 @@ if __name__ == '__main__':
     std_magnitude = np.std(total_rho)
     std_angle = np.std(total_phi)
     
-    
     print('Mean(magnitude) = ' + str(mean_magnitude) + '    Mean(angle) = ' + str(mean_angle) + '\n')
     print('Std(magnitude) = ' + str(std_magnitude) + '    Std(angle) = ' + str(std_angle) + '\n')
     
+    plotGraphs(total_rho, total_phi, mean_magnitude, std_magnitude, mean_angle, std_angle)
+
     vw.release()
     cap.release()
     cv2.destroyAllWindows()
