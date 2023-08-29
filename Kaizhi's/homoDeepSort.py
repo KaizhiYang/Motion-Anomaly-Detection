@@ -175,7 +175,10 @@ def scatterGraph(total_mag, total_ang):
 def KDEgraph(total_mag, total_ang):
 
     # Create a 2D KDE plot
-    sns.kdeplot(x=total_mag, y=total_ang, cmap="Blues", fill=True)
+    sns.kdeplot(x=total_mag, y=total_ang, cmap="Blues", fill=True, levels=8, cbar=True)
+
+    # Limit x axis from 0 to 20
+    plt.xlim(0,20)
 
     # Add labels and a title
     plt.xlabel("Magnitude")
