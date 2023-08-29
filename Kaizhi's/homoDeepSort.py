@@ -1,6 +1,7 @@
 import cv2
 import numpy as np 
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 # DeepSORT -> Importing DeepSORT.
@@ -138,18 +139,22 @@ def normalDistGraph(mean, std_dev, src_name):
 
     # Create an array of x values
     x = np.linspace(-10*mean, 10*mean, 100)  # Choose an appropriate range
-    if src_name is "Angle":
+    if src_name == "Angle":
         x = np.linspace(-8*std_dev, 8*std_dev, 100)
 
     # Calculate the PDF for each x value
     pdf = (1 / (std_dev * np.sqrt(2 * np.pi))) * np.exp(-((x - mean)**2) / (2 * std_dev**2))
+
+    # fromatting numbers
+    formatted_mean = "{:.4f}".format(mean)
+    formatted_std_dev = "{:.4f}".format(std_dev)
 
     # Plot the normal distribution
     plt.plot(x, pdf, label='Normal Distribution')
     plt.xlabel("X (" + src_name + ")")
     plt.ylabel('Probability Density')
     plt.legend()
-    plt.title(f'Normal Distribution (μ={mean}, σ={std_dev})')
+    plt.title(f'Normal Distribution (μ={formatted_mean}, σ={formatted_std_dev})')
     plt.grid(True)
     
 
@@ -166,17 +171,33 @@ def scatterGraph(total_mag, total_ang):
     # Optional: Add a legend
     plt.legend()
 
+# Create KDE (Kernel Density Estimate) plot
+def KDEgraph(total_mag, total_ang):
+
+    # Create a 2D KDE plot
+    sns.kdeplot(x=total_mag, y=total_ang, cmap="Blues", fill=True)
+
+    # Add labels and a title
+    plt.xlabel("Magnitude")
+    plt.ylabel("Angle")
+    plt.title("2D KDE Plot")
+
 # Plot graphs: two normal distributions + one scatter graph
 def plotGraphs(total_mag, total_ang, mean_mag, std_dev_mag, mean_ang, std_dev_ang):
-    plt.subplot(3,1,1)
+    plt.subplot(2,2,1)
     scatterGraph(total_mag, total_ang)
-    plt.subplot(3,1,2)
+    plt.subplot(2,2,3)
+    KDEgraph(total_mag, total_ang)
+    plt.subplot(2,2,2)
     normalDistGraph(mean_mag, std_dev_mag, "Magnitude")
-    plt.subplot(3,1,3)
+    plt.subplot(2,2,4)
     normalDistGraph(mean_ang, std_dev_ang, "Angle")
     plt.tight_layout()
     plt.show()
-    
+
+
+
+
 if __name__ == '__main__':
     # DeepSORT -> Intializing tracker.
     max_cosine_distance = 0.4
@@ -383,9 +404,9 @@ if __name__ == '__main__':
             else:
                 track_points[person_id] = ([(newX, newY)])
                 track_colors[person_id] = [int(c) for c in COLORS[colorCount]]
-                track_rho[person_id] = [0]
-                track_phi[person_id] = [0]
-                track_xy_prime[person_id] = [(0,0)]
+                track_rho[person_id] = []
+                track_phi[person_id] = []
+                track_xy_prime[person_id] = []
                 
             colorCount += 1
             
