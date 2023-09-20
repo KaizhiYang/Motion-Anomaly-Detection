@@ -2,6 +2,7 @@ import cv2
 import numpy as np 
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import gaussian_kde
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 # DeepSORT -> Importing DeepSORT.
@@ -19,6 +20,10 @@ fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 vidFile = "CrowdTracking/Kaizhi's/test1.mp4"
 vw = cv2.VideoWriter(vidFile, fourcc, 24, (2302,1302),1) # resolution has to align with the image you want to save as a video
 videoSaver = False  # 1: save video  0: not save
+
+# data saver
+# Specify the file path (change it to your desired file path)
+PATH = "CrowdTracking/Kaizhi's/data.txt"
 
 # data for Homography process
 top_left = (41,4)
@@ -175,7 +180,7 @@ def scatterGraph(total_mag, total_ang):
 def KDEgraph(total_mag, total_ang):
 
     # Create a 2D KDE plot
-    sns.kdeplot(x=total_mag, y=total_ang, cmap="Blues", fill=True, levels=8, cbar=True)
+    sns.kdeplot(x=total_mag, y=total_ang, cmap="bwr", fill=True, levels=8, cbar=True)
 
     # Limit x axis from 0 to 20
     plt.xlim(0,20)
@@ -198,7 +203,95 @@ def plotGraphs(total_mag, total_ang, mean_mag, std_dev_mag, mean_ang, std_dev_an
     plt.tight_layout()
     plt.show()
 
+def getKdeValue(x_values, y_values):
+    # Fit a 2D KDE estimator to the data
+    kde = gaussian_kde([x_values, y_values])
 
+    # Evaluate the KDE estimator at specific points to get density values
+    points_to_evaluate = np.vstack([x_values, y_values])
+    density_values = kde(points_to_evaluate)
+    return density_values
+
+def dataSaver(data1, data2, data3, file_path):
+    # Open the file in write mode ('w')
+    with open(file_path, 'w') as file:
+        # Write data to the file
+        for i in range(len(data1)):
+            file.write(f"{data1[i]}\t{data2[i]}\t{data3[i]}\n")
+        min_data3 = min(data3)
+        max_data3 = max(data3)
+        file.write(f"{min_data3}\t{max_data3}\n")
+    # File is automatically closed when the 'with' block exits
+
+    print(f"Data has been saved to {file_path}\n")
+
+def dataGetter(file_path):
+    data = []
+    min_max = (-1,-1)
+    
+    # Open the file in read mode ('r')
+    with open(file_path, 'r') as file:
+        # Read each line of the file
+        for line in file:
+            # Split the line into two values (assuming tab-separated values)
+            values = line.strip().split('\t')
+            if len(values) == 3:
+                # Convert the values to float and append to respective lists
+                value1 = float(values[0])
+                value2 = float(values[1])
+                value3 = float(values[2])
+                data.append([value1, value2, value3])
+            elif len(values) == 2:
+                value1 = float(values[0])
+                value2 = float(values[1])
+                min_max = [value1, value2]
+    print(f"Data has been saved to local variables")
+    print("Min and max density: ", min_max)
+    print("\n")
+    return data, min_max
+
+# Find density value by Magnitude and Angle
+def findDensityByMA(m, a, data):
+    density = -1
+    for i in range(len(data)):
+        if data[i][0] == m and data[i][1] == a:
+            density = data[i][2]
+    return density
+
+# Normalize value in range of min and max, then assign color to that value based on normalized value
+def value_to_color(value, min_value, max_value, colorGradients):
+    
+    # Calculate the normalized value within the range [0, 1]
+    normalized_value = (value - min_value) / (max_value - min_value)
+    index = int(max(normalized_value * 512 - 2, 0))
+    
+    # Interpolate between blue and red based on the normalized value
+    interpolated_color = colorGradients[index]
+
+    # Return the interpolated color as an integer tuple (B, G, R)
+    return interpolated_color
+
+# return array of array which contains BGR from Blue to Red
+def colorBlue2Red():
+    # Define the number of steps from Blue to Red GBR
+    num_steps = 511 
+
+    # Create a gradient from blue to red
+    gradient = np.zeros((num_steps, 3))
+    count = 255
+
+    # Store colors in gradient
+    for i in range(num_steps):
+        if (i < 255):
+            gradient[i][0] = i
+            gradient[i][1] = i
+            gradient[i][2] = 255
+        else:
+            gradient[i][0] = 255
+            gradient[i][1] = count
+            gradient[i][2] = count
+            count -= 1
+    return gradient
 
 
 if __name__ == '__main__':
@@ -210,15 +303,36 @@ if __name__ == '__main__':
     metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
     tracker = Tracker(metric)
     
-    # frame_idx=0
+    fileChecker = 1
+    magnitude_angle_density = -1
+    min_max_density = [-1,-1]
+    try:
+    # Attempt to open a file that may not exist
+        with open(PATH, "r") as file:
+            # Perform operations on the file
+            content = file.read()
+    # If the file is found and successfully opened, continue here
+    except FileNotFoundError:
+        # Handle the FileNotFoundError
+        fileChecker = 0
+        print("Data file not found. Please wait for the completion of the whole program.")
+    except Exception as e:
+        # Handle other exceptions if necessary
+        fileChecker = 0
+        print(f"An error occurred: {e}")
+
+    # Get data from "data.txt"
+    if fileChecker == 1:
+        magnitude_angle_density, min_max_density = dataGetter(PATH)
     
-    # Initialize the position and color of each people
+    
+    # Initialize the info tracker of each people
     track_points = {}
     track_colors = {}
     track_rho = {}
     track_phi = {}
     track_xy_prime = {}
-    
+
     ## set up input type and classes
     cap = cv2.VideoCapture(input_vid) # input could be video or camera 2
     file = open("CrowdTracking/Kaizhi's/classes.txt","r")
@@ -374,6 +488,8 @@ if __name__ == '__main__':
             
             # Homography Transform -> Transform poeple's coordinates and write ID on it
             people_position = getCoordinate(bbox[0], bbox[1], (bbox[2] - bbox[0]), (bbox[3] - bbox[1]))
+            people_x = int(people_position[0])
+            people_y = int(people_position[1])
             trasformed_position = np.dot(hMatrix, people_position)
             newX, newY, temp = trasformed_position/trasformed_position[2]
             newX = int(newX)
@@ -382,9 +498,11 @@ if __name__ == '__main__':
             if maskImgDetect(mask_img, (newX, newY)):
                 color = (0,0,255)
             
+            # draw points on birdseye view canvas
             cv2.circle(img_background, (newX, newY),15,color,30)
             cv2.putText(img_background, txt, (newX, newY), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,0), 5)
             
+
             # draw the tracklet of each person
             if person_id in track_points.keys():
                 track_points[person_id].append((newX, newY))
@@ -399,7 +517,13 @@ if __name__ == '__main__':
                 r, p = coordinateToPolar(x_prime, y_prime)
                 track_rho[person_id].append(r)
                 track_phi[person_id].append(p)
-                
+                # Estimate trajectory
+                if fileChecker == 1:
+                    kde_density = findDensityByMA(r, p, magnitude_angle_density)
+                    if kde_density != -1:
+                        kde_color = value_to_color(kde_density, min_max_density[0], min_max_density[1], colorBlue2Red())
+                        # draw points on original image
+                        cv2.circle(img, (people_x, people_y),10,kde_color,10)
                 for i in range(1, len(coordinates)):
                     current_x, current_y = coordinates[i]
                     cv2.line(img_background, (int(prev_x), int(prev_y)), (int(current_x), int(current_y)), color, 4)
@@ -413,6 +537,8 @@ if __name__ == '__main__':
                 
             colorCount += 1
             
+            
+
             # DeepSORT -> Writing Track bounding box and ID on the frame using OpenCV.
             (label_width,label_height), baseline = cv2.getTextSize(txt , cv2.FONT_HERSHEY_SIMPLEX,1,1)
             top_left_box = tuple(map(int,[int(bbox[0]),int(bbox[1])-(label_height+baseline)]))
@@ -446,6 +572,13 @@ if __name__ == '__main__':
     mean_angle = sum(total_phi) / len(total_phi)
     std_magnitude = np.std(total_rho)
     std_angle = np.std(total_phi)
+
+    if fileChecker != 1:
+        # Calculate the KDE density values for whole data
+        kde_density_values = getKdeValue(total_rho, total_phi)
+
+        # Store Magnitude, Angle, and KDE density values in order seperated by "\t" in "data.txt"
+        dataSaver(total_rho, total_phi, kde_density_values, PATH)
     
     print('Mean(magnitude) = ' + str(mean_magnitude) + '    Mean(angle) = ' + str(mean_angle) + '\n')
     print('Std(magnitude) = ' + str(std_magnitude) + '    Std(angle) = ' + str(std_angle) + '\n')
