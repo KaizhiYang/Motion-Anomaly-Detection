@@ -435,7 +435,7 @@ if __name__ == '__main__':
         # show img
         threeImgShow(img_trans, img_background, img, videoSaver)
         
-        k = cv2.waitKey(1) # 5 seconds = 5 * 1000
+        k = cv2.waitKey(300) # 5 seconds = 5 * 1000
         if k == ord('q'):
             break
     
