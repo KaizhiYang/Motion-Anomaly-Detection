@@ -19,7 +19,7 @@ input_cam = 2
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 vidFile = "CrowdTracking/Kaizhi's/test1.mp4"
 vw = cv2.VideoWriter(vidFile, fourcc, 24, (2302,1302),1) # resolution has to align with the image you want to save as a video
-videoSaver = False  # 1: save video  0: not save
+videoSaver = True  # 1: save video  0: not save
 
 # data saver
 # Specify the file path (change it to your desired file path)
@@ -129,8 +129,9 @@ def maskImgDetect(mask_img, people):
 # covert x and y coordinates system into magnitude and angle system
 def coordinateToPolar(x_p, y_p):
     magnitude = np.sqrt((x_p) ** 2 + (y_p) ** 2)
-    angle = np.arctan2(y_p, x_p)
-    return magnitude, angle
+    theta = np.arctan2(y_p, x_p)
+    degree = np.rad2deg(theta)
+    return magnitude, degree
 
 # Use the extend method to combine the lists
 def combineLists(lists):
@@ -328,6 +329,7 @@ if __name__ == '__main__':
     
     # Initialize the info tracker of each people
     track_points = {}
+    track_origin_points = {}
     track_colors = {}
     track_rho = {}
     track_phi = {}
@@ -505,10 +507,12 @@ if __name__ == '__main__':
 
             # draw the tracklet of each person
             if person_id in track_points.keys():
+                track_origin_points[person_id].append((people_x, people_y))
                 track_points[person_id].append((newX, newY))
                 coordinates = track_points[person_id]
+                coordinates_origin = track_origin_points[person_id]
                 prev_x, prev_y = coordinates[len(coordinates)-2]
-                
+                prev_origin_x, prev_origin_y = coordinates_origin[len(coordinates_origin)-2]
                 # Normal Distribution -> step1
                 x_prime = newX - prev_x
                 y_prime = newY - prev_y
@@ -523,17 +527,22 @@ if __name__ == '__main__':
                     if kde_density != -1:
                         kde_color = value_to_color(kde_density, min_max_density[0], min_max_density[1], colorBlue2Red())
                         # draw points on original image
-                        cv2.circle(img, (people_x, people_y),10,kde_color,10)
+                        cv2.circle(img, (people_x, people_y),5,kde_color,10)
                 for i in range(1, len(coordinates)):
+                    prev_x, prev_y = coordinates[i-1]
                     current_x, current_y = coordinates[i]
+                    prev_origin_x, prev_origin_y = coordinates_origin[i-1]
+                    current_origin_x, current_origin_y = coordinates_origin[i]
                     cv2.line(img_background, (int(prev_x), int(prev_y)), (int(current_x), int(current_y)), color, 4)
-                    prev_x, prev_y = coordinates[i]
+                    cv2.line(img, (int(prev_origin_x), int(prev_origin_y)), (int(current_origin_x), int(current_origin_y)), kde_color, 4)
+                    
             else:
                 track_points[person_id] = ([(newX, newY)])
                 track_colors[person_id] = [int(c) for c in COLORS[colorCount]]
                 track_rho[person_id] = []
                 track_phi[person_id] = []
                 track_xy_prime[person_id] = []
+                track_origin_points[person_id] = [(people_x, people_y)]
                 
             colorCount += 1
             
