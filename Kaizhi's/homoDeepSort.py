@@ -39,6 +39,9 @@ bot_left_frbd = (455,870)
 bot_right_frbd = (890,870)
 forbidden_area = np.array([top_right_frbd, top_left_frbd, bot_left_frbd, bot_right_frbd], np.int32)
 
+# Threshold for detecting anomalies
+anomly_threshold = 0.001
+
 # get the m and n in the equation y = mx + n
 def getMN(pointA, pointB):
     Xa, Ya = pointA
@@ -255,7 +258,7 @@ def dataGetter(file_path):
 def findDensityByMA(m, a, data):
     density = -1
     for i in range(len(data)):
-        if data[i][0] == m and data[i][1] == a:
+        if np.isclose(data[i][0], m, atol=1e-8) and np.isclose(data[i][1], a, atol=1e-8):
             density = data[i][2]
     return density
 
@@ -525,9 +528,17 @@ if __name__ == '__main__':
                 if fileChecker == 1:
                     kde_density = findDensityByMA(r, p, magnitude_angle_density)
                     if kde_density != -1:
-                        kde_color = value_to_color(kde_density, min_max_density[0], min_max_density[1], colorBlue2Red())
-                        # draw points on original image
-                        cv2.circle(img, (people_x, people_y),5,kde_color,10)
+                        if kde_density > anomly_threshold:
+                            # kde_color = value_to_color(kde_density, min_max_density[0], min_max_density[1], colorBlue2Red())
+                            kde_color = [132, 128, 253]
+                            # draw points on original image
+                            cv2.circle(img, (people_x, people_y),5,kde_color,10)
+                        else:
+                            # kde_color = value_to_color(kde_density, min_max_density[0], min_max_density[1], colorBlue2Red())
+                            kde_color = [253, 2, 86]
+                            # draw points on original image
+                            cv2.circle(img, (people_x, people_y),5,kde_color,10)
+
                 for i in range(1, len(coordinates)):
                     prev_x, prev_y = coordinates[i-1]
                     current_x, current_y = coordinates[i]
