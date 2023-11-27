@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import gaussian_kde
 
-PATH = "CrowdTracking/Kaizhi's/data.txt"
+PATH = "Kaizhi's/data.txt"
 
 # Create KDE (Kernel Density Estimate) plot
 def KDEgraph(total_mag, total_ang):
 
     # Create a 2D KDE plot
-    sns.kdeplot(x=total_mag, y=total_ang, cmap="bwr", fill=True, levels=8, cbar=True)
+    sns.kdeplot(x=total_mag, y=total_ang, cmap="bwr", fill=True, levels=4, cbar=True)
 
     # Limit x axis from 0 to 20
     plt.xlim(0,20)
@@ -57,26 +57,7 @@ for data in magnitude_angle:
     a.append(data[1])
     if len(data) == 3:
         kde_value.append(data[2])
-# Define the range of your x and y values
-m_min, m_max = min(m), max(m)
-a_min, a_max = min(a), max(a)
-a.pop()
-m.pop()
-kde_value.pop()
-# Define the number of points for the grid
-num_points = 100
-
-# Create a grid of points
-m_grid, a_grid = np.meshgrid(np.linspace(m_min, m_max, 185), np.linspace(a_min, a_max, 50))
-
-kde_value = np.array(kde_value).reshape(m_grid.shape)
 
 
-plt.figure(figsize=(8, 6))
-plt.contourf(m_grid, a_grid, kde_value, levels=8, cmap='bwr')
-plt.colorbar()
-plt.xlabel('Magnitude')
-plt.ylabel('Angle')
-plt.title('2D KDE Plot')
-plt.show()
+KDEgraph(m,a)
 
